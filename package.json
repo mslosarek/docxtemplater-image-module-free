@@ -26,7 +26,7 @@
     "istanbul": "^0.4.5",
     "jszip": "^2.6.1",
     "mkdirp": "^0.5.1",
-    "mocha": "^3.2.0",
+    "mocha": "^10.3.0",
     "pizzip": "^3.1.6",
     "rimraf": "^2.5.4",
     "uglifyjs": "^2.4.10"
