@@ -3,155 +3,150 @@
 
 var DocUtils = require("docxtemplater").DocUtils;
 DocUtils.convertPixelsToEmus = function (pixel) {
-	return Math.round(pixel * 9525);
+  return Math.round(pixel * 9525);
 };
 module.exports = DocUtils;
 },{"docxtemplater":13}],2:[function(require,module,exports){
 "use strict";
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, _toPropertyKey(descriptor.key), descriptor); } }
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : String(i); }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 var DocUtils = require("./docUtils");
 var extensionRegex = /[^.]+\.([^.]+)/;
-
 var rels = {
-	getPrefix: function getPrefix(fileType) {
-		return fileType === "docx" ? "word" : "ppt";
-	},
-	getFileTypeName: function getFileTypeName(fileType) {
-		return fileType === "docx" ? "document" : "presentation";
-	},
-	getRelsFileName: function getRelsFileName(fileName) {
-		return fileName.replace(/^.*?([a-zA-Z0-9]+)\.xml$/, "$1") + ".xml.rels";
-	},
-	getRelsFilePath: function getRelsFilePath(fileName, fileType) {
-		var relsFileName = rels.getRelsFileName(fileName);
-		var prefix = fileType === "pptx" ? "ppt/slides" : "word";
-		return prefix + "/_rels/" + relsFileName;
-	}
+  getPrefix: function getPrefix(fileType) {
+    return fileType === "docx" ? "word" : "ppt";
+  },
+  getFileTypeName: function getFileTypeName(fileType) {
+    return fileType === "docx" ? "document" : "presentation";
+  },
+  getRelsFileName: function getRelsFileName(fileName) {
+    return fileName.replace(/^.*?([a-zA-Z0-9]+)\.xml$/, "$1") + ".xml.rels";
+  },
+  getRelsFilePath: function getRelsFilePath(fileName, fileType) {
+    var relsFileName = rels.getRelsFileName(fileName);
+    var prefix = fileType === "pptx" ? "ppt/slides" : "word";
+    return "".concat(prefix, "/_rels/").concat(relsFileName);
+  }
 };
-
-module.exports = function () {
-	function ImgManager(zip, fileName, xmlDocuments, fileType) {
-		_classCallCheck(this, ImgManager);
-
-		this.fileName = fileName;
-		this.prefix = rels.getPrefix(fileType);
-		this.zip = zip;
-		this.xmlDocuments = xmlDocuments;
-		this.fileTypeName = rels.getFileTypeName(fileType);
-		this.mediaPrefix = fileType === "pptx" ? "../media" : "media";
-		var relsFilePath = rels.getRelsFilePath(fileName, fileType);
-		this.relsDoc = xmlDocuments[relsFilePath] || this.createEmptyRelsDoc(xmlDocuments, relsFilePath);
-	}
-
-	_createClass(ImgManager, [{
-		key: "createEmptyRelsDoc",
-		value: function createEmptyRelsDoc(xmlDocuments, relsFileName) {
-			var mainRels = this.prefix + "/_rels/" + this.fileTypeName + ".xml.rels";
-			var doc = xmlDocuments[mainRels];
-			if (!doc) {
-				var err = new Error("Could not copy from empty relsdoc");
-				err.properties = {
-					mainRels: mainRels,
-					relsFileName: relsFileName,
-					files: Object.keys(this.zip.files)
-				};
-				throw err;
-			}
-			var relsDoc = DocUtils.str2xml(DocUtils.xml2str(doc));
-			var relationships = relsDoc.getElementsByTagName("Relationships")[0];
-			var relationshipChilds = relationships.getElementsByTagName("Relationship");
-			for (var i = 0, l = relationshipChilds.length; i < l; i++) {
-				relationships.removeChild(relationshipChilds[i]);
-			}
-			xmlDocuments[relsFileName] = relsDoc;
-			return relsDoc;
-		}
-	}, {
-		key: "loadImageRels",
-		value: function loadImageRels() {
-			var iterable = this.relsDoc.getElementsByTagName("Relationship");
-			return Array.prototype.reduce.call(iterable, function (max, relationship) {
-				var id = relationship.getAttribute("Id");
-				if (/^rId[0-9]+$/.test(id)) {
-					return Math.max(max, parseInt(id.substr(3), 10));
-				}
-				return max;
-			}, 0);
-		}
-		// Add an extension type in the [Content_Types.xml], is used if for example you want word to be able to read png files (for every extension you add you need a contentType)
-
-	}, {
-		key: "addExtensionRels",
-		value: function addExtensionRels(contentType, extension) {
-			var contentTypeDoc = this.xmlDocuments["[Content_Types].xml"];
-			var defaultTags = contentTypeDoc.getElementsByTagName("Default");
-			var extensionRegistered = Array.prototype.some.call(defaultTags, function (tag) {
-				return tag.getAttribute("Extension") === extension;
-			});
-			if (extensionRegistered) {
-				return;
-			}
-			var types = contentTypeDoc.getElementsByTagName("Types")[0];
-			var newTag = contentTypeDoc.createElement("Default");
-			newTag.namespaceURI = null;
-			newTag.setAttribute("ContentType", contentType);
-			newTag.setAttribute("Extension", extension);
-			types.appendChild(newTag);
-		}
-		// Add an image and returns it's Rid
-
-	}, {
-		key: "addImageRels",
-		value: function addImageRels(imageName, imageData, i) {
-			if (i == null) {
-				i = 0;
-			}
-			var realImageName = i === 0 ? imageName : imageName + ("(" + i + ")");
-			var imagePath = this.prefix + "/media/" + realImageName;
-			if (this.zip.files[imagePath] != null) {
-				return this.addImageRels(imageName, imageData, i + 1);
-			}
-			var image = {
-				name: imagePath,
-				data: imageData,
-				options: {
-					binary: true
-				}
-			};
-			this.zip.file(image.name, image.data, image.options);
-			var extension = realImageName.replace(extensionRegex, "$1");
-			this.addExtensionRels("image/" + extension, extension);
-			var relationships = this.relsDoc.getElementsByTagName("Relationships")[0];
-			var newTag = this.relsDoc.createElement("Relationship");
-			newTag.namespaceURI = null;
-			var maxRid = this.loadImageRels() + 1;
-			newTag.setAttribute("Id", "rId" + maxRid);
-			newTag.setAttribute("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
-			newTag.setAttribute("Target", this.mediaPrefix + "/" + realImageName);
-			relationships.appendChild(newTag);
-			return maxRid;
-		}
-	}]);
-
-	return ImgManager;
+module.exports = /*#__PURE__*/function () {
+  function ImgManager(zip, fileName, xmlDocuments, fileType) {
+    _classCallCheck(this, ImgManager);
+    this.fileName = fileName;
+    this.prefix = rels.getPrefix(fileType);
+    this.zip = zip;
+    this.xmlDocuments = xmlDocuments;
+    this.fileTypeName = rels.getFileTypeName(fileType);
+    this.mediaPrefix = fileType === "pptx" ? "../media" : "media";
+    var relsFilePath = rels.getRelsFilePath(fileName, fileType);
+    this.relsDoc = xmlDocuments[relsFilePath] || this.createEmptyRelsDoc(xmlDocuments, relsFilePath);
+  }
+  _createClass(ImgManager, [{
+    key: "createEmptyRelsDoc",
+    value: function createEmptyRelsDoc(xmlDocuments, relsFileName) {
+      var mainRels = this.prefix + "/_rels/" + this.fileTypeName + ".xml.rels";
+      var doc = xmlDocuments[mainRels];
+      if (!doc) {
+        var err = new Error("Could not copy from empty relsdoc");
+        err.properties = {
+          mainRels: mainRels,
+          relsFileName: relsFileName,
+          files: Object.keys(this.zip.files)
+        };
+        throw err;
+      }
+      var relsDoc = DocUtils.str2xml(DocUtils.xml2str(doc));
+      var relationships = relsDoc.getElementsByTagName("Relationships")[0];
+      var relationshipChilds = relationships.getElementsByTagName("Relationship");
+      for (var i = 0, l = relationshipChilds.length; i < l; i++) {
+        relationships.removeChild(relationshipChilds[i]);
+      }
+      xmlDocuments[relsFileName] = relsDoc;
+      return relsDoc;
+    }
+  }, {
+    key: "loadImageRels",
+    value: function loadImageRels() {
+      var iterable = this.relsDoc.getElementsByTagName("Relationship");
+      return Array.prototype.reduce.call(iterable, function (max, relationship) {
+        var id = relationship.getAttribute("Id");
+        if (/^rId[0-9]+$/.test(id)) {
+          return Math.max(max, parseInt(id.substr(3), 10));
+        }
+        return max;
+      }, 0);
+    }
+    // Add an extension type in the [Content_Types.xml], is used if for example you want word to be able to read png files (for every extension you add you need a contentType)
+  }, {
+    key: "addExtensionRels",
+    value: function addExtensionRels(contentType, extension) {
+      var contentTypeDoc = this.xmlDocuments["[Content_Types].xml"];
+      var defaultTags = contentTypeDoc.getElementsByTagName("Default");
+      var extensionRegistered = Array.prototype.some.call(defaultTags, function (tag) {
+        return tag.getAttribute("Extension") === extension;
+      });
+      if (extensionRegistered) {
+        return;
+      }
+      var types = contentTypeDoc.getElementsByTagName("Types")[0];
+      var newTag = contentTypeDoc.createElement("Default");
+      newTag.namespaceURI = null;
+      newTag.setAttribute("ContentType", contentType);
+      newTag.setAttribute("Extension", extension);
+      types.appendChild(newTag);
+    }
+    // Add an image and returns it's Rid
+  }, {
+    key: "addImageRels",
+    value: function addImageRels(imageName, imageData, i) {
+      if (i == null) {
+        i = 0;
+      }
+      var realImageName = i === 0 ? imageName : imageName + "(".concat(i, ")");
+      var imagePath = "".concat(this.prefix, "/media/").concat(realImageName);
+      if (this.zip.files[imagePath] != null) {
+        return this.addImageRels(imageName, imageData, i + 1);
+      }
+      var image = {
+        name: imagePath,
+        data: imageData,
+        options: {
+          binary: true
+        }
+      };
+      this.zip.file(image.name, image.data, image.options);
+      var extension = realImageName.replace(extensionRegex, "$1");
+      this.addExtensionRels("image/".concat(extension), extension);
+      var relationships = this.relsDoc.getElementsByTagName("Relationships")[0];
+      var newTag = this.relsDoc.createElement("Relationship");
+      newTag.namespaceURI = null;
+      var maxRid = this.loadImageRels() + 1;
+      newTag.setAttribute("Id", "rId".concat(maxRid));
+      newTag.setAttribute("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
+      newTag.setAttribute("Target", "".concat(this.mediaPrefix, "/").concat(realImageName));
+      relationships.appendChild(newTag);
+      return maxRid;
+    }
+  }]);
+  return ImgManager;
 }();
 },{"./docUtils":1}],3:[function(require,module,exports){
 "use strict";
 
 module.exports = {
-	getImageXml: function getImageXml(rId, size) {
-		return ("<w:drawing>\n\t\t<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">\n\t\t\t<wp:extent cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>\n\t\t\t<wp:docPr id=\"2\" name=\"Image 2\" descr=\"image\"/>\n\t\t\t<wp:cNvGraphicFramePr>\n\t\t\t\t<a:graphicFrameLocks xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" noChangeAspect=\"1\"/>\n\t\t\t</wp:cNvGraphicFramePr>\n\t\t\t<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">\n\t\t\t\t<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t<pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:cNvPr id=\"0\" name=\"Picture 1\" descr=\"image\"/>\n\t\t\t\t\t\t\t<pic:cNvPicPr>\n\t\t\t\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t\t\t\t</pic:cNvPicPr>\n\t\t\t\t\t\t</pic:nvPicPr>\n\t\t\t\t\t\t<pic:blipFill>\n\t\t\t\t\t\t\t<a:blip r:embed=\"rId" + rId + "\">\n\t\t\t\t\t\t\t\t<a:extLst>\n\t\t\t\t\t\t\t\t\t<a:ext uri=\"{28A0092B-C50C-407E-A947-70E740481C1C}\">\n\t\t\t\t\t\t\t\t\t\t<a14:useLocalDpi xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" val=\"0\"/>\n\t\t\t\t\t\t\t\t\t</a:ext>\n\t\t\t\t\t\t\t\t</a:extLst>\n\t\t\t\t\t\t\t</a:blip>\n\t\t\t\t\t\t\t<a:srcRect/>\n\t\t\t\t\t\t\t<a:stretch>\n\t\t\t\t\t\t\t\t<a:fillRect/>\n\t\t\t\t\t\t\t</a:stretch>\n\t\t\t\t\t\t</pic:blipFill>\n\t\t\t\t\t\t<pic:spPr bwMode=\"auto\">\n\t\t\t\t\t\t\t<a:xfrm>\n\t\t\t\t\t\t\t\t<a:off x=\"0\" y=\"0\"/>\n\t\t\t\t\t\t\t\t<a:ext cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t\t\t\t</a:xfrm>\n\t\t\t\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t\t\t\t<a:avLst/>\n\t\t\t\t\t\t\t</a:prstGeom>\n\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t<a:ln>\n\t\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t</a:ln>\n\t\t\t\t\t\t</pic:spPr>\n\t\t\t\t\t</pic:pic>\n\t\t\t\t</a:graphicData>\n\t\t\t</a:graphic>\n\t\t</wp:inline>\n\t</w:drawing>\n\t\t").replace(/\t|\n/g, "");
-	},
-	getImageXmlCentered: function getImageXmlCentered(rId, size) {
-		return ("<w:p>\n\t\t\t<w:pPr>\n\t\t\t\t<w:jc w:val=\"center\"/>\n\t\t\t</w:pPr>\n\t\t\t<w:r>\n\t\t\t\t<w:rPr/>\n\t\t\t\t<w:drawing>\n\t\t\t\t\t<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">\n\t\t\t\t\t<wp:extent cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t\t<wp:docPr id=\"0\" name=\"Picture\" descr=\"\"/>\n\t\t\t\t\t<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">\n\t\t\t\t\t\t<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t\t<pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:cNvPr id=\"0\" name=\"Picture\" descr=\"\"/>\n\t\t\t\t\t\t\t<pic:cNvPicPr>\n\t\t\t\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t\t\t\t</pic:cNvPicPr>\n\t\t\t\t\t\t\t</pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:blipFill>\n\t\t\t\t\t\t\t<a:blip r:embed=\"rId" + rId + "\"/>\n\t\t\t\t\t\t\t<a:stretch>\n\t\t\t\t\t\t\t\t<a:fillRect/>\n\t\t\t\t\t\t\t</a:stretch>\n\t\t\t\t\t\t\t</pic:blipFill>\n\t\t\t\t\t\t\t<pic:spPr bwMode=\"auto\">\n\t\t\t\t\t\t\t<a:xfrm>\n\t\t\t\t\t\t\t\t<a:off x=\"0\" y=\"0\"/>\n\t\t\t\t\t\t\t\t<a:ext cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t\t\t\t</a:xfrm>\n\t\t\t\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t\t\t\t<a:avLst/>\n\t\t\t\t\t\t\t</a:prstGeom>\n\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t<a:ln w=\"9525\">\n\t\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t\t<a:miter lim=\"800000\"/>\n\t\t\t\t\t\t\t\t<a:headEnd/>\n\t\t\t\t\t\t\t\t<a:tailEnd/>\n\t\t\t\t\t\t\t</a:ln>\n\t\t\t\t\t\t\t</pic:spPr>\n\t\t\t\t\t\t</pic:pic>\n\t\t\t\t\t\t</a:graphicData>\n\t\t\t\t\t</a:graphic>\n\t\t\t\t\t</wp:inline>\n\t\t\t\t</w:drawing>\n\t\t\t</w:r>\n\t\t</w:p>\n\t\t").replace(/\t|\n/g, "");
-	},
-	getPptxImageXml: function getPptxImageXml(rId, size, offset) {
-		return ("<p:pic>\n\t\t\t<p:nvPicPr>\n\t\t\t\t<p:cNvPr id=\"6\" name=\"Picture 2\"/>\n\t\t\t\t<p:cNvPicPr>\n\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t</p:cNvPicPr>\n\t\t\t\t<p:nvPr/>\n\t\t\t</p:nvPicPr>\n\t\t\t<p:blipFill>\n\t\t\t\t<a:blip r:embed=\"rId" + rId + "\" cstate=\"print\">\n\t\t\t\t\t<a:extLst>\n\t\t\t\t\t\t<a:ext uri=\"{28A0092B-C50C-407E-A947-70E740481C1C}\">\n\t\t\t\t\t\t\t<a14:useLocalDpi xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" val=\"0\"/>\n\t\t\t\t\t\t</a:ext>\n\t\t\t\t\t</a:extLst>\n\t\t\t\t</a:blip>\n\t\t\t\t<a:srcRect/>\n\t\t\t\t<a:stretch>\n\t\t\t\t\t<a:fillRect/>\n\t\t\t\t</a:stretch>\n\t\t\t</p:blipFill>\n\t\t\t<p:spPr bwMode=\"auto\">\n\t\t\t\t<a:xfrm>\n\t\t\t\t\t<a:off x=\"" + offset.x + "\" y=\"" + offset.y + "\"/>\n\t\t\t\t\t<a:ext cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t</a:xfrm>\n\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t<a:avLst/>\n\t\t\t\t</a:prstGeom>\n\t\t\t\t<a:noFill/>\n\t\t\t\t<a:ln>\n\t\t\t\t\t<a:noFill/>\n\t\t\t\t</a:ln>\n\t\t\t\t<a:effectLst/>\n\t\t\t\t<a:extLst>\n\t\t\t\t\t<a:ext uri=\"{909E8E84-426E-40DD-AFC4-6F175D3DCCD1}\">\n\t\t\t\t\t\t<a14:hiddenFill xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">\n\t\t\t\t\t\t\t<a:solidFill>\n\t\t\t\t\t\t\t\t<a:schemeClr val=\"accent1\"/>\n\t\t\t\t\t\t\t</a:solidFill>\n\t\t\t\t\t\t</a14:hiddenFill>\n\t\t\t\t\t</a:ext>\n\t\t\t\t\t<a:ext uri=\"{91240B29-F687-4F45-9708-019B960494DF}\">\n\t\t\t\t\t\t<a14:hiddenLine xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" w=\"9525\">\n\t\t\t\t\t\t\t<a:solidFill>\n\t\t\t\t\t\t\t\t<a:schemeClr val=\"tx1\"/>\n\t\t\t\t\t\t\t</a:solidFill>\n\t\t\t\t\t\t\t<a:miter lim=\"800000\"/>\n\t\t\t\t\t\t\t<a:headEnd/>\n\t\t\t\t\t\t\t<a:tailEnd/>\n\t\t\t\t\t\t</a14:hiddenLine>\n\t\t\t\t\t</a:ext>\n\t\t\t\t\t<a:ext uri=\"{AF507438-7753-43E0-B8FC-AC1667EBCBE1}\">\n\t\t\t\t\t\t<a14:hiddenEffects xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">\n\t\t\t\t\t\t\t<a:effectLst>\n\t\t\t\t\t\t\t\t<a:outerShdw dist=\"35921\" dir=\"2700000\" algn=\"ctr\" rotWithShape=\"0\">\n\t\t\t\t\t\t\t\t\t<a:schemeClr val=\"bg2\"/>\n\t\t\t\t\t\t\t\t</a:outerShdw>\n\t\t\t\t\t\t\t</a:effectLst>\n\t\t\t\t\t\t</a14:hiddenEffects>\n\t\t\t\t\t</a:ext>\n\t\t\t\t</a:extLst>\n\t\t\t</p:spPr>\n\t\t</p:pic>\n\t\t").replace(/\t|\n/g, "");
-	}
+  getImageXml: function getImageXml(rId, size) {
+    return "<w:drawing>\n\t\t<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">\n\t\t\t<wp:extent cx=\"".concat(size[0], "\" cy=\"").concat(size[1], "\"/>\n\t\t\t<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>\n\t\t\t<wp:docPr id=\"2\" name=\"Image 2\" descr=\"image\"/>\n\t\t\t<wp:cNvGraphicFramePr>\n\t\t\t\t<a:graphicFrameLocks xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" noChangeAspect=\"1\"/>\n\t\t\t</wp:cNvGraphicFramePr>\n\t\t\t<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">\n\t\t\t\t<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t<pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:cNvPr id=\"0\" name=\"Picture 1\" descr=\"image\"/>\n\t\t\t\t\t\t\t<pic:cNvPicPr>\n\t\t\t\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t\t\t\t</pic:cNvPicPr>\n\t\t\t\t\t\t</pic:nvPicPr>\n\t\t\t\t\t\t<pic:blipFill>\n\t\t\t\t\t\t\t<a:blip r:embed=\"rId").concat(rId, "\">\n\t\t\t\t\t\t\t\t<a:extLst>\n\t\t\t\t\t\t\t\t\t<a:ext uri=\"{28A0092B-C50C-407E-A947-70E740481C1C}\">\n\t\t\t\t\t\t\t\t\t\t<a14:useLocalDpi xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" val=\"0\"/>\n\t\t\t\t\t\t\t\t\t</a:ext>\n\t\t\t\t\t\t\t\t</a:extLst>\n\t\t\t\t\t\t\t</a:blip>\n\t\t\t\t\t\t\t<a:srcRect/>\n\t\t\t\t\t\t\t<a:stretch>\n\t\t\t\t\t\t\t\t<a:fillRect/>\n\t\t\t\t\t\t\t</a:stretch>\n\t\t\t\t\t\t</pic:blipFill>\n\t\t\t\t\t\t<pic:spPr bwMode=\"auto\">\n\t\t\t\t\t\t\t<a:xfrm>\n\t\t\t\t\t\t\t\t<a:off x=\"0\" y=\"0\"/>\n\t\t\t\t\t\t\t\t<a:ext cx=\"").concat(size[0], "\" cy=\"").concat(size[1], "\"/>\n\t\t\t\t\t\t\t</a:xfrm>\n\t\t\t\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t\t\t\t<a:avLst/>\n\t\t\t\t\t\t\t</a:prstGeom>\n\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t<a:ln>\n\t\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t</a:ln>\n\t\t\t\t\t\t</pic:spPr>\n\t\t\t\t\t</pic:pic>\n\t\t\t\t</a:graphicData>\n\t\t\t</a:graphic>\n\t\t</wp:inline>\n\t</w:drawing>\n\t\t").replace(/\t|\n/g, "");
+  },
+  getImageXmlCentered: function getImageXmlCentered(rId, size) {
+    return "<w:p>\n\t\t\t<w:pPr>\n\t\t\t\t<w:jc w:val=\"center\"/>\n\t\t\t</w:pPr>\n\t\t\t<w:r>\n\t\t\t\t<w:rPr/>\n\t\t\t\t<w:drawing>\n\t\t\t\t\t<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">\n\t\t\t\t\t<wp:extent cx=\"".concat(size[0], "\" cy=\"").concat(size[1], "\"/>\n\t\t\t\t\t<wp:docPr id=\"0\" name=\"Picture\" descr=\"\"/>\n\t\t\t\t\t<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">\n\t\t\t\t\t\t<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t\t<pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:cNvPr id=\"0\" name=\"Picture\" descr=\"\"/>\n\t\t\t\t\t\t\t<pic:cNvPicPr>\n\t\t\t\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t\t\t\t</pic:cNvPicPr>\n\t\t\t\t\t\t\t</pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:blipFill>\n\t\t\t\t\t\t\t<a:blip r:embed=\"rId").concat(rId, "\"/>\n\t\t\t\t\t\t\t<a:stretch>\n\t\t\t\t\t\t\t\t<a:fillRect/>\n\t\t\t\t\t\t\t</a:stretch>\n\t\t\t\t\t\t\t</pic:blipFill>\n\t\t\t\t\t\t\t<pic:spPr bwMode=\"auto\">\n\t\t\t\t\t\t\t<a:xfrm>\n\t\t\t\t\t\t\t\t<a:off x=\"0\" y=\"0\"/>\n\t\t\t\t\t\t\t\t<a:ext cx=\"").concat(size[0], "\" cy=\"").concat(size[1], "\"/>\n\t\t\t\t\t\t\t</a:xfrm>\n\t\t\t\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t\t\t\t<a:avLst/>\n\t\t\t\t\t\t\t</a:prstGeom>\n\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t<a:ln w=\"9525\">\n\t\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t\t<a:miter lim=\"800000\"/>\n\t\t\t\t\t\t\t\t<a:headEnd/>\n\t\t\t\t\t\t\t\t<a:tailEnd/>\n\t\t\t\t\t\t\t</a:ln>\n\t\t\t\t\t\t\t</pic:spPr>\n\t\t\t\t\t\t</pic:pic>\n\t\t\t\t\t\t</a:graphicData>\n\t\t\t\t\t</a:graphic>\n\t\t\t\t\t</wp:inline>\n\t\t\t\t</w:drawing>\n\t\t\t</w:r>\n\t\t</w:p>\n\t\t").replace(/\t|\n/g, "");
+  },
+  getPptxImageXml: function getPptxImageXml(rId, size, offset) {
+    return "<p:pic>\n\t\t\t<p:nvPicPr>\n\t\t\t\t<p:cNvPr id=\"6\" name=\"Picture 2\"/>\n\t\t\t\t<p:cNvPicPr>\n\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t</p:cNvPicPr>\n\t\t\t\t<p:nvPr/>\n\t\t\t</p:nvPicPr>\n\t\t\t<p:blipFill>\n\t\t\t\t<a:blip r:embed=\"rId".concat(rId, "\" cstate=\"print\">\n\t\t\t\t\t<a:extLst>\n\t\t\t\t\t\t<a:ext uri=\"{28A0092B-C50C-407E-A947-70E740481C1C}\">\n\t\t\t\t\t\t\t<a14:useLocalDpi xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" val=\"0\"/>\n\t\t\t\t\t\t</a:ext>\n\t\t\t\t\t</a:extLst>\n\t\t\t\t</a:blip>\n\t\t\t\t<a:srcRect/>\n\t\t\t\t<a:stretch>\n\t\t\t\t\t<a:fillRect/>\n\t\t\t\t</a:stretch>\n\t\t\t</p:blipFill>\n\t\t\t<p:spPr bwMode=\"auto\">\n\t\t\t\t<a:xfrm>\n\t\t\t\t\t<a:off x=\"").concat(offset.x, "\" y=\"").concat(offset.y, "\"/>\n\t\t\t\t\t<a:ext cx=\"").concat(size[0], "\" cy=\"").concat(size[1], "\"/>\n\t\t\t\t</a:xfrm>\n\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t<a:avLst/>\n\t\t\t\t</a:prstGeom>\n\t\t\t\t<a:noFill/>\n\t\t\t\t<a:ln>\n\t\t\t\t\t<a:noFill/>\n\t\t\t\t</a:ln>\n\t\t\t\t<a:effectLst/>\n\t\t\t\t<a:extLst>\n\t\t\t\t\t<a:ext uri=\"{909E8E84-426E-40DD-AFC4-6F175D3DCCD1}\">\n\t\t\t\t\t\t<a14:hiddenFill xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">\n\t\t\t\t\t\t\t<a:solidFill>\n\t\t\t\t\t\t\t\t<a:schemeClr val=\"accent1\"/>\n\t\t\t\t\t\t\t</a:solidFill>\n\t\t\t\t\t\t</a14:hiddenFill>\n\t\t\t\t\t</a:ext>\n\t\t\t\t\t<a:ext uri=\"{91240B29-F687-4F45-9708-019B960494DF}\">\n\t\t\t\t\t\t<a14:hiddenLine xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" w=\"9525\">\n\t\t\t\t\t\t\t<a:solidFill>\n\t\t\t\t\t\t\t\t<a:schemeClr val=\"tx1\"/>\n\t\t\t\t\t\t\t</a:solidFill>\n\t\t\t\t\t\t\t<a:miter lim=\"800000\"/>\n\t\t\t\t\t\t\t<a:headEnd/>\n\t\t\t\t\t\t\t<a:tailEnd/>\n\t\t\t\t\t\t</a14:hiddenLine>\n\t\t\t\t\t</a:ext>\n\t\t\t\t\t<a:ext uri=\"{AF507438-7753-43E0-B8FC-AC1667EBCBE1}\">\n\t\t\t\t\t\t<a14:hiddenEffects xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">\n\t\t\t\t\t\t\t<a:effectLst>\n\t\t\t\t\t\t\t\t<a:outerShdw dist=\"35921\" dir=\"2700000\" algn=\"ctr\" rotWithShape=\"0\">\n\t\t\t\t\t\t\t\t\t<a:schemeClr val=\"bg2\"/>\n\t\t\t\t\t\t\t\t</a:outerShdw>\n\t\t\t\t\t\t\t</a:effectLst>\n\t\t\t\t\t\t</a14:hiddenEffects>\n\t\t\t\t\t</a:ext>\n\t\t\t\t</a:extLst>\n\t\t\t</p:spPr>\n\t\t</p:pic>\n\t\t").replace(/\t|\n/g, "");
+  }
 };
 },{}],4:[function(require,module,exports){
 'use strict'
@@ -10091,223 +10086,240 @@ module.exports = /*#__PURE__*/function () {
 },{"./doc-utils.js":12,"./join-uncorrupt.js":19,"./lexer.js":20,"./parser.js":29,"./postrender.js":30,"./render.js":32,"./resolve.js":33,"./xml-matcher.js":37}],"/js/index.js":[function(require,module,exports){
 "use strict";
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, _toPropertyKey(descriptor.key), descriptor); } }
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : String(i); }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 var templates = require("./templates");
 var DocUtils = require("docxtemplater").DocUtils;
 var DOMParser = require("@xmldom/xmldom").DOMParser;
-
 function isNaN(number) {
-	return !(number === number);
+  return !(number === number);
 }
-
 var ImgManager = require("./imgManager");
 var moduleName = "open-xml-templating/docxtemplater-image-module";
-
 function getInnerDocx(_ref) {
-	var part = _ref.part;
-
-	return part;
+  var part = _ref.part;
+  return part;
 }
-
 function getInnerPptx(_ref2) {
-	var part = _ref2.part,
-	    left = _ref2.left,
-	    right = _ref2.right,
-	    postparsed = _ref2.postparsed;
-
-	var xmlString = postparsed.slice(left + 1, right).reduce(function (concat, item) {
-		return concat + item.value;
-	}, "");
-	var xmlDoc = new DOMParser().parseFromString("<xml>" + xmlString + "</xml>");
-	part.offset = { x: 0, y: 0 };
-	part.ext = { cx: 0, cy: 0 };
-	var offset = xmlDoc.getElementsByTagName("a:off");
-	var ext = xmlDoc.getElementsByTagName("a:ext");
-	if (ext.length > 0) {
-		part.ext.cx = parseInt(ext[ext.length - 1].getAttribute("cx"), 10);
-		part.ext.cy = parseInt(ext[ext.length - 1].getAttribute("cy"), 10);
-	}
-	if (offset.length > 0) {
-		part.offset.x = parseInt(offset[offset.length - 1].getAttribute("x"), 10);
-		part.offset.y = parseInt(offset[offset.length - 1].getAttribute("y"), 10);
-	}
-	return part;
+  var part = _ref2.part,
+    left = _ref2.left,
+    right = _ref2.right,
+    postparsed = _ref2.postparsed;
+  var xmlString = postparsed.slice(left + 1, right).reduce(function (concat, item) {
+    return concat + item.value;
+  }, "");
+  var xmlDoc = new DOMParser().parseFromString("<xml>" + xmlString + "</xml>");
+  part.offset = {
+    x: 0,
+    y: 0
+  };
+  part.ext = {
+    cx: 0,
+    cy: 0
+  };
+  var offset = xmlDoc.getElementsByTagName("a:off");
+  var ext = xmlDoc.getElementsByTagName("a:ext");
+  if (ext.length > 0) {
+    part.ext.cx = parseInt(ext[ext.length - 1].getAttribute("cx"), 10);
+    part.ext.cy = parseInt(ext[ext.length - 1].getAttribute("cy"), 10);
+  }
+  if (offset.length > 0) {
+    part.offset.x = parseInt(offset[offset.length - 1].getAttribute("x"), 10);
+    part.offset.y = parseInt(offset[offset.length - 1].getAttribute("y"), 10);
+  }
+  return part;
 }
-
-var ImageModule = function () {
-	function ImageModule(options) {
-		_classCallCheck(this, ImageModule);
-
-		this.name = "ImageModule";
-		this.options = options || {};
-		this.imgManagers = {};
-		if (this.options.centered == null) {
-			this.options.centered = false;
-		}
-		if (this.options.getImage == null) {
-			throw new Error("You should pass getImage");
-		}
-		if (this.options.getSize == null) {
-			throw new Error("You should pass getSize");
-		}
-		this.imageNumber = 1;
-	}
-
-	_createClass(ImageModule, [{
-		key: "optionsTransformer",
-		value: function optionsTransformer(options, docxtemplater) {
-			var relsFiles = docxtemplater.zip.file(/\.xml\.rels/).concat(docxtemplater.zip.file(/\[Content_Types\].xml/)).map(function (file) {
-				return file.name;
-			});
-			this.fileTypeConfig = docxtemplater.fileTypeConfig;
-			this.fileType = docxtemplater.fileType;
-			this.zip = docxtemplater.zip;
-			options.xmlFileNames = options.xmlFileNames.concat(relsFiles);
-			return options;
-		}
-	}, {
-		key: "set",
-		value: function set(options) {
-			if (options.zip) {
-				this.zip = options.zip;
-			}
-			if (options.xmlDocuments) {
-				this.xmlDocuments = options.xmlDocuments;
-			}
-		}
-	}, {
-		key: "parse",
-		value: function parse(placeHolderContent) {
-			var module = moduleName;
-			var type = "placeholder";
-			if (this.options.setParser) {
-				return this.options.setParser(placeHolderContent);
-			}
-			if (placeHolderContent.substring(0, 2) === "%%") {
-				return { type: type, value: placeHolderContent.substr(2), module: module, centered: true };
-			}
-			if (placeHolderContent.substring(0, 1) === "%") {
-				return { type: type, value: placeHolderContent.substr(1), module: module, centered: false };
-			}
-			return null;
-		}
-	}, {
-		key: "postparse",
-		value: function postparse(parsed) {
-			var expandTo = void 0;
-			var getInner = void 0;
-			if (this.fileType === "pptx") {
-				expandTo = "p:sp";
-				getInner = getInnerPptx;
-			} else {
-				expandTo = this.options.centered ? "w:p" : "w:t";
-				getInner = getInnerDocx;
-			}
-			return DocUtils.traits.expandToOne(parsed, { moduleName: moduleName, getInner: getInner, expandTo: expandTo });
-		}
-	}, {
-		key: "render",
-		value: function render(part, options) {
-			if (!part.type === "placeholder" || part.module !== moduleName) {
-				return null;
-			}
-			var tagValue = options.scopeManager.getValue(part.value, {
-				part: part
-			});
-			if (!tagValue) {
-				return { value: this.fileTypeConfig.tagTextXml };
-			} else if ((typeof tagValue === "undefined" ? "undefined" : _typeof(tagValue)) === "object" && tagValue.rId && tagValue.sizePixel) {
-				return this.getRenderedPart(part, tagValue.rId, tagValue.sizePixel);
-			}
-			var imgManager = new ImgManager(this.zip, options.filePath, this.xmlDocuments, this.fileType);
-			var imgBuffer = this.options.getImage(tagValue, part.value);
-			var rId = imgManager.addImageRels(this.getNextImageName(), imgBuffer);
-			var sizePixel = this.options.getSize(imgBuffer, tagValue, part.value);
-			return this.getRenderedPart(part, rId, sizePixel);
-		}
-	}, {
-		key: "resolve",
-		value: function resolve(part, options) {
-			var _this = this;
-
-			var imgManager = new ImgManager(this.zip, options.filePath, this.xmlDocuments, this.fileType);
-			if (!part.type === "placeholder" || part.module !== moduleName) {
-				return null;
-			}
-			var value = options.scopeManager.getValue(part.value, {
-				part: part
-			});
-			if (!value) {
-				return { value: this.fileTypeConfig.tagTextXml };
-			}
-			return new Promise(function (resolve) {
-				var imgBuffer = _this.options.getImage(value, part.value);
-				resolve(imgBuffer);
-			}).then(function (imgBuffer) {
-				var rId = imgManager.addImageRels(_this.getNextImageName(), imgBuffer);
-				return new Promise(function (resolve) {
-					var sizePixel = _this.options.getSize(imgBuffer, value, part.value);
-					resolve(sizePixel);
-				}).then(function (sizePixel) {
-					return {
-						rId: rId,
-						sizePixel: sizePixel
-					};
-				});
-			});
-		}
-	}, {
-		key: "getRenderedPart",
-		value: function getRenderedPart(part, rId, sizePixel) {
-			if (isNaN(rId)) {
-				throw new Error("rId is NaN, aborting");
-			}
-			var size = [DocUtils.convertPixelsToEmus(sizePixel[0]), DocUtils.convertPixelsToEmus(sizePixel[1])];
-			var centered = this.options.centered || part.centered;
-			var newText = void 0;
-			if (this.fileType === "pptx") {
-				newText = this.getRenderedPartPptx(part, rId, size, centered);
-			} else {
-				newText = this.getRenderedPartDocx(rId, size, centered);
-			}
-			return { value: newText };
-		}
-	}, {
-		key: "getRenderedPartPptx",
-		value: function getRenderedPartPptx(part, rId, size, centered) {
-			var offset = { x: parseInt(part.offset.x, 10), y: parseInt(part.offset.y, 10) };
-			var cellCX = parseInt(part.ext.cx, 10) || 1;
-			var cellCY = parseInt(part.ext.cy, 10) || 1;
-			var imgW = parseInt(size[0], 10) || 1;
-			var imgH = parseInt(size[1], 10) || 1;
-			if (centered) {
-				offset.x = Math.round(offset.x + cellCX / 2 - imgW / 2);
-				offset.y = Math.round(offset.y + cellCY / 2 - imgH / 2);
-			}
-			return templates.getPptxImageXml(rId, [imgW, imgH], offset);
-		}
-	}, {
-		key: "getRenderedPartDocx",
-		value: function getRenderedPartDocx(rId, size, centered) {
-			return centered ? templates.getImageXmlCentered(rId, size) : templates.getImageXml(rId, size);
-		}
-	}, {
-		key: "getNextImageName",
-		value: function getNextImageName() {
-			var name = "image_generated_" + this.imageNumber + ".png";
-			this.imageNumber++;
-			return name;
-		}
-	}]);
-
-	return ImageModule;
+var ImageModule = /*#__PURE__*/function () {
+  function ImageModule(options) {
+    _classCallCheck(this, ImageModule);
+    this.name = "ImageModule";
+    this.options = options || {};
+    this.imgManagers = {};
+    if (this.options.centered == null) {
+      this.options.centered = false;
+    }
+    if (this.options.getImage == null) {
+      throw new Error("You should pass getImage");
+    }
+    if (this.options.getSize == null) {
+      throw new Error("You should pass getSize");
+    }
+    this.imageNumber = 1;
+  }
+  _createClass(ImageModule, [{
+    key: "optionsTransformer",
+    value: function optionsTransformer(options, docxtemplater) {
+      var relsFiles = docxtemplater.zip.file(/\.xml\.rels/).concat(docxtemplater.zip.file(/\[Content_Types\].xml/)).map(function (file) {
+        return file.name;
+      });
+      this.fileTypeConfig = docxtemplater.fileTypeConfig;
+      this.fileType = docxtemplater.fileType;
+      this.zip = docxtemplater.zip;
+      options.xmlFileNames = options.xmlFileNames.concat(relsFiles);
+      return options;
+    }
+  }, {
+    key: "set",
+    value: function set(options) {
+      if (options.zip) {
+        this.zip = options.zip;
+      }
+      if (options.xmlDocuments) {
+        this.xmlDocuments = options.xmlDocuments;
+      }
+    }
+  }, {
+    key: "parse",
+    value: function parse(placeHolderContent) {
+      var module = moduleName;
+      var type = "placeholder";
+      if (this.options.setParser) {
+        return this.options.setParser(placeHolderContent);
+      }
+      if (placeHolderContent.substring(0, 2) === "%%") {
+        return {
+          type: type,
+          value: placeHolderContent.substr(2),
+          module: module,
+          centered: true
+        };
+      }
+      if (placeHolderContent.substring(0, 1) === "%") {
+        return {
+          type: type,
+          value: placeHolderContent.substr(1),
+          module: module,
+          centered: false
+        };
+      }
+      return null;
+    }
+  }, {
+    key: "postparse",
+    value: function postparse(parsed) {
+      var expandTo;
+      var getInner;
+      if (this.fileType === "pptx") {
+        expandTo = "p:sp";
+        getInner = getInnerPptx;
+      } else {
+        expandTo = this.options.centered ? "w:p" : "w:t";
+        getInner = getInnerDocx;
+      }
+      return DocUtils.traits.expandToOne(parsed, {
+        moduleName: moduleName,
+        getInner: getInner,
+        expandTo: expandTo
+      });
+    }
+  }, {
+    key: "render",
+    value: function render(part, options) {
+      if (!part.type === "placeholder" || part.module !== moduleName) {
+        return null;
+      }
+      var tagValue = options.scopeManager.getValue(part.value, {
+        part: part
+      });
+      if (!tagValue) {
+        return {
+          value: this.fileTypeConfig.tagTextXml
+        };
+      } else if (_typeof(tagValue) === "object" && tagValue.rId && tagValue.sizePixel) {
+        return this.getRenderedPart(part, tagValue.rId, tagValue.sizePixel);
+      }
+      var imgManager = new ImgManager(this.zip, options.filePath, this.xmlDocuments, this.fileType);
+      var imgBuffer = this.options.getImage(tagValue, part.value);
+      var rId = imgManager.addImageRels(this.getNextImageName(), imgBuffer);
+      var sizePixel = this.options.getSize(imgBuffer, tagValue, part.value);
+      return this.getRenderedPart(part, rId, sizePixel);
+    }
+  }, {
+    key: "resolve",
+    value: function resolve(part, options) {
+      var _this = this;
+      var imgManager = new ImgManager(this.zip, options.filePath, this.xmlDocuments, this.fileType);
+      if (!part.type === "placeholder" || part.module !== moduleName) {
+        return null;
+      }
+      var value = options.scopeManager.getValue(part.value, {
+        part: part
+      });
+      if (!value) {
+        return {
+          value: this.fileTypeConfig.tagTextXml
+        };
+      }
+      return new Promise(function (resolve) {
+        var imgBuffer = _this.options.getImage(value, part.value);
+        resolve(imgBuffer);
+      }).then(function (imgBuffer) {
+        var rId = imgManager.addImageRels(_this.getNextImageName(), imgBuffer);
+        return new Promise(function (resolve) {
+          var sizePixel = _this.options.getSize(imgBuffer, value, part.value);
+          resolve(sizePixel);
+        }).then(function (sizePixel) {
+          return {
+            rId: rId,
+            sizePixel: sizePixel
+          };
+        });
+      });
+    }
+  }, {
+    key: "getRenderedPart",
+    value: function getRenderedPart(part, rId, sizePixel) {
+      if (isNaN(rId)) {
+        throw new Error("rId is NaN, aborting");
+      }
+      var size = [DocUtils.convertPixelsToEmus(sizePixel[0]), DocUtils.convertPixelsToEmus(sizePixel[1])];
+      var centered = this.options.centered || part.centered;
+      var newText;
+      if (this.fileType === "pptx") {
+        newText = this.getRenderedPartPptx(part, rId, size, centered);
+      } else {
+        newText = this.getRenderedPartDocx(rId, size, centered);
+      }
+      return {
+        value: newText
+      };
+    }
+  }, {
+    key: "getRenderedPartPptx",
+    value: function getRenderedPartPptx(part, rId, size, centered) {
+      var offset = {
+        x: parseInt(part.offset.x, 10),
+        y: parseInt(part.offset.y, 10)
+      };
+      var cellCX = parseInt(part.ext.cx, 10) || 1;
+      var cellCY = parseInt(part.ext.cy, 10) || 1;
+      var imgW = parseInt(size[0], 10) || 1;
+      var imgH = parseInt(size[1], 10) || 1;
+      if (centered) {
+        offset.x = Math.round(offset.x + cellCX / 2 - imgW / 2);
+        offset.y = Math.round(offset.y + cellCY / 2 - imgH / 2);
+      }
+      return templates.getPptxImageXml(rId, [imgW, imgH], offset);
+    }
+  }, {
+    key: "getRenderedPartDocx",
+    value: function getRenderedPartDocx(rId, size, centered) {
+      return centered ? templates.getImageXmlCentered(rId, size) : templates.getImageXml(rId, size);
+    }
+  }, {
+    key: "getNextImageName",
+    value: function getNextImageName() {
+      var name = "image_generated_".concat(this.imageNumber, ".png");
+      this.imageNumber++;
+      return name;
+    }
+  }]);
+  return ImageModule;
 }();
-
 module.exports = ImageModule;
 },{"./imgManager":2,"./templates":3,"@xmldom/xmldom":8,"docxtemplater":13}]},{},[])("/js/index.js")
 });

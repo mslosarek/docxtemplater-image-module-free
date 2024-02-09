@@ -1,5 +1,3 @@
-"use strict";
-
 const templates = require("./templates");
 const DocUtils = require("docxtemplater").DocUtils;
 const DOMParser = require("@xmldom/xmldom").DOMParser;
