@@ -29,7 +29,7 @@ Usage
 Assuming your **docx** or **pptx** template contains only the text `{%image}`:
 ```javascript
 //Node.js example
-var ImageModule = require('open-docxtemplater-image-module');
+var ImageModule = require('docxtemplater-image-module-free');
 
 //Below the options that will be passed to ImageModule instance
 var opts = {}
@@ -322,4 +322,3 @@ const imageOpts = {
 doc.attachModule(new ImageModule(imageOpts));
 ```
 
- 

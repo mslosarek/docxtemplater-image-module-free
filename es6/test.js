@@ -4,7 +4,6 @@
 const fs = require("fs");
 const Docxtemplater = require("docxtemplater");
 const path = require("path");
-const JSZip = require("jszip");
 const ImageModule = require("./index.js");
 const testutils = require("docxtemplater/js/tests/utils");
 const shouldBeSame = testutils.shouldBeSame;
@@ -44,12 +43,13 @@ beforeEach(function () {
 
 	this.loadAndRender = function () {
 		const file = testutils.createDoc(this.name);
-		this.doc = new Docxtemplater();
-		const inputZip = new JSZip(file.loadedContent);
-		this.doc.loadZip(inputZip).setData(this.data);
-		const imageModule = new ImageModule(this.opts);
-		this.doc.attachModule(imageModule);
-		this.renderedDoc = this.doc.render();
+		this.doc = new Docxtemplater(
+			file.zip,
+			{
+				modules: [new ImageModule(this.opts)],
+			}
+		);
+		this.renderedDoc = this.doc.render(this.data);
 		const doc = this.renderedDoc;
 		shouldBeSame({doc, expectedName: this.expectedName});
 	};
@@ -138,12 +138,12 @@ function testStart() {
 			this.name = "imageExample.docx";
 			function base64DataURLToArrayBuffer(dataURL) {
 				const stringBase64 = dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
-				let binaryString;
+				let binaryString
 				if (typeof window !== "undefined") {
 					binaryString = window.atob(stringBase64);
 				}
 				else {
-					binaryString = new Buffer(stringBase64, "base64").toString("binary");
+					binaryString = Buffer.from(stringBase64, "base64").toString("binary");
 				}
 				const len = binaryString.length;
 				const bytes = new Uint8Array(len);
@@ -166,6 +166,11 @@ function testStart() {
 testutils.setExamplesDirectory(path.resolve(__dirname, "..", "examples"));
 testutils.setStartFunction(testStart);
 fileNames.forEach(function (filename) {
-	testutils.loadFile(filename, testutils.loadDocument);
+	testutils.loadFile(filename, (err, name, content) => {
+		if (err) {
+			throw err;
+		}
+		return testutils.loadDocument(name, content);
+	});
 });
 testutils.start();

@@ -4,7 +4,6 @@
 var fs = require("fs");
 var Docxtemplater = require("docxtemplater");
 var path = require("path");
-var JSZip = require("jszip");
 var ImageModule = require("./index.js");
 var testutils = require("docxtemplater/js/tests/utils");
 var shouldBeSame = testutils.shouldBeSame;
@@ -25,12 +24,10 @@ beforeEach(function () {
 
 	this.loadAndRender = function () {
 		var file = testutils.createDoc(this.name);
-		this.doc = new Docxtemplater();
-		var inputZip = new JSZip(file.loadedContent);
-		this.doc.loadZip(inputZip).setData(this.data);
-		var imageModule = new ImageModule(this.opts);
-		this.doc.attachModule(imageModule);
-		this.renderedDoc = this.doc.render();
+		this.doc = new Docxtemplater(file.zip, {
+			modules: [new ImageModule(this.opts)]
+		});
+		this.renderedDoc = this.doc.render(this.data);
 		var doc = this.renderedDoc;
 		shouldBeSame({ doc: doc, expectedName: this.expectedName });
 	};
@@ -123,7 +120,7 @@ function testStart() {
 				if (typeof window !== "undefined") {
 					binaryString = window.atob(stringBase64);
 				} else {
-					binaryString = new Buffer(stringBase64, "base64").toString("binary");
+					binaryString = Buffer.from(stringBase64, "base64").toString("binary");
 				}
 				var len = binaryString.length;
 				var bytes = new Uint8Array(len);
@@ -146,6 +143,11 @@ function testStart() {
 testutils.setExamplesDirectory(path.resolve(__dirname, "..", "examples"));
 testutils.setStartFunction(testStart);
 fileNames.forEach(function (filename) {
-	testutils.loadFile(filename, testutils.loadDocument);
+	testutils.loadFile(filename, function (err, name, content) {
+		if (err) {
+			throw err;
+		}
+		return testutils.loadDocument(name, content);
+	});
 });
 testutils.start();
