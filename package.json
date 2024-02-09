@@ -1,6 +1,6 @@
 {
-  "name": "docxtemplater-image-module-free",
-  "version": "1.1.1",
+  "name": "@slosarek/docxtemplater-image-module-free",
+  "version": "1.2.0",
   "description": "Open Source Image Module for docxtemplater",
   "main": "js/index.js",
   "scripts": {
@@ -34,11 +34,26 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/evilc0des/docxtemplater-image-module-free"
+    "url": "git+https://github.com/mslosarek/docxtemplater-image-module-free.git"
   },
   "author": "Dk Saha",
+  "contributors": [
+    "Dk Saha",
+    "Mark Slosarek"
+  ],
   "license": "MIT",
   "dependencies": {
     "@xmldom/xmldom": "^0.8.10"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/mslosarek/docxtemplater-image-module-free/issues"
+  },
+  "homepage": "https://github.com/mslosarek/docxtemplater-image-module-free#readme",
+  "directories": {
+    "example": "examples"
+  },
+  "keywords": [
+    "docxtemplater",
+    "image-module"
+  ]
 }
